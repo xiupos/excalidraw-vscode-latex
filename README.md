@@ -1,5 +1,7 @@
 # Excalidraw
 
+> This is a fork of [pomdtr/excalidraw-vscode](https://github.com/pomdtr/excalidraw-vscode) that adds LaTeX math formula support. See [README_LATEX.md](./README_LATEX.md) for what's new and how to install it.
+
 This extension integrates Excalidraw into VS Code.
 To use it, create an empty file with a `.excalidraw`, `.excalidraw.json`, `.excalidraw.svg` or `.excalidraw.png` extension and open it in Visual Studio Code.
 
@@ -13,7 +15,7 @@ Try the web version at : <https://excalidraw.com/>
   - [Switch Editor Theme](#switch-editor-theme)
   - [Import Public Library](#import-public-library)
   - [View Drawing Source](#view-drawing-source)
-  - [Associate Additional Extensions with the Excalidraw Editor](#associate-additional-extensions-with-the-excalidraw-editor)
+  - [Associate Additional Extensions with Excalidraw LaTeX](#associate-additional-extensions-with-excalidraw-latex)
   - [Sharing your Library](#sharing-your-library)
   - [Configure Language](#configure-language)
 - [Contact](#contact)
@@ -67,7 +69,7 @@ You can switch between the Excalidraw editor and the source (text or image) usin
 
 ![Use the dedicated toolbar button to view the diagram source](./medias/view_source.gif)
 
-### Associate Additional Extensions with the Excalidraw Editor
+### Associate Additional Extensions with Excalidraw LaTeX
 
 By default, this extension only handles `*.excalidraw`, `*.excalidraw.svg` and `*.excalidraw.png` files.
 
@@ -115,4 +117,4 @@ Thank you for considering contributing to the extension :sparkling_heart: !
 
 This extension only goal is to integrate Excalidraw to the Visual Studio Code ecosystem. Users should be able to use both the website and the extension with a minimal amount of friction. As such, we will not accept any contribution that significantly modify the user experience compared to the Excalidraw website.
 
-There are exceptions to this rule (for example, the switch theme icon was deported to Visual Studio Code editor toolbar to allow a better integration). In case of uncertainty, create a thread in the project [Discussion Page](https://github.com/excalidraw/excalidraw-vscode/discussions).
+There are exceptions to this rule (for example, the switch theme icon was deported to Visual Studio Code editor toolbar to allow a better integration). In case of uncertainty, create a thread in the project [Discussion Page](https://github.com/xiupos/excalidraw-vscode-latex/discussions).

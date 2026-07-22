@@ -1,0 +1,122 @@
+name: Build VSIX
+
+on:
+  push:
+    branches: [master]
+    # Tag pushes ignore `paths` entirely (GitHub only evaluates path filters
+    # for branch pushes), so a release tag always builds regardless of which
+    # files its commit touched.
+    tags: ["v*-latex-*"]
+    paths:
+      - "src/**"
+      - "webview/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".vscodeignore"
+      - ".github/workflows/build-vsix.yml"
+  pull_request:
+    paths:
+      - "src/**"
+      - "webview/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".vscodeignore"
+      - ".github/workflows/build-vsix.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            webview/package-lock.json
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install webview dependencies
+        working-directory: webview
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      # Scoped to the fork's own code: the full `npm run lint` here also
+      # flags pre-existing upstream lint debt in files this fork doesn't
+      # touch, which would make this check permanently red for reasons
+      # outside this fork's scope (see AGENTS.md's fast-forward-mergeability
+      # philosophy on not drive-by-refactoring upstream files).
+      - name: Lint LaTeX feature and demo entry
+        working-directory: webview
+        run: npx eslint src/latex src/demo
+
+      - name: Typecheck webview
+        working-directory: webview
+        run: npx tsc -b
+
+      - name: Build extension + webview
+        run: npm run package
+
+      - name: Package VSIX
+        run: npx --yes @vscode/vsce package
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vsix
+          path: "*.vsix"
+          if-no-files-found: error
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: vsix
+
+      # CHANGELOG_LATEX.md sections are headed "## <version>" with no `v`
+      # prefix (see README_LATEX.md's versioning scheme), so strip it from
+      # the tag name before matching.
+      - name: Extract release notes from CHANGELOG_LATEX.md
+        id: notes
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v ver="$version" '
+            $0 == "## " ver { found=1; next }
+            found && /^## / { exit }
+            found { print }
+          ' CHANGELOG_LATEX.md > release-notes.md
+          if [ -s release-notes.md ]; then
+            echo "has_notes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_notes=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ steps.notes.outputs.has_notes }}" = "true" ]; then
+            gh release create "$GITHUB_REF_NAME" *.vsix \
+              --title "$GITHUB_REF_NAME" \
+              --notes-file release-notes.md
+          else
+            gh release create "$GITHUB_REF_NAME" *.vsix \
+              --title "$GITHUB_REF_NAME" \
+              --generate-notes
+          fi

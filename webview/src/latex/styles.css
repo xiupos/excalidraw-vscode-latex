@@ -1,0 +1,154 @@
+/* Reuses Excalidraw's own .Island class (background/shadow/border-radius)
+   so the floating trigger looks like a natural extension of the shapes
+   toolbar rather than a bespoke button; position is computed in
+   ToolbarButton.tsx from the toolbar's own measured position. */
+.excalidraw-latex-island {
+  /* Excalidraw's own toolbar/sidebar chrome also sits at --zIndex-layerUI;
+     since this button floats detached from the toolbar (see
+     ToolbarButton.tsx), it needs to render strictly above that layer to
+     stay clickable when it overlaps the toolbar in tight layouts, rather
+     than tying and losing to DOM/paint order. */
+  z-index: calc(var(--zIndex-layerUI) + 1);
+  padding: 3px;
+  display: flex;
+  align-items: center;
+}
+
+/* Everything else (background, border, hover/active states, dark theme)
+   comes from Excalidraw's own .excalidraw-button class (applied by the
+   imported <Button>); only override what a text label needs that the
+   default square icon-button sizing doesn't. The doubled-up selector beats
+   .excalidraw-button's own same-specificity rules regardless of CSS load
+   order. */
+.excalidraw-button.excalidraw-latex-text-button {
+  width: auto;
+  height: 2.25rem;
+  padding: 0 0.75rem;
+  white-space: nowrap;
+}
+
+.excalidraw-button.excalidraw-latex-island-button {
+  aspect-ratio: 1 / 1;
+  width: auto;
+  height: 100%;
+  padding: 0;
+}
+
+.excalidraw-latex-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--zIndex-modal);
+  background-color: var(--overlay-bg-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.excalidraw-latex-modal {
+  background-color: var(--island-bg-color);
+  color: var(--text-primary-color);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--modal-shadow);
+  padding: 1.5rem;
+  width: 480px;
+  max-width: 90vw;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.excalidraw-latex-modal h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.excalidraw-latex-modal textarea {
+  font-family: monospace;
+  font-size: 0.9rem;
+  padding: 0.5rem;
+  border-radius: var(--border-radius-md);
+  border: 1px solid var(--default-border-color);
+  background-color: var(--popup-bg-color);
+  color: var(--text-primary-color);
+  resize: vertical;
+}
+
+.excalidraw-latex-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+}
+
+.excalidraw-latex-extensions summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--text-primary-color);
+}
+
+.excalidraw-latex-extensions-controls {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.excalidraw-latex-extensions-controls button {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.8rem;
+  color: var(--color-primary);
+  cursor: pointer;
+}
+
+.excalidraw-latex-extensions-controls button:hover {
+  text-decoration: underline;
+}
+
+.excalidraw-latex-extensions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.35rem 0.75rem;
+  margin-top: 0.5rem;
+  max-height: 10rem;
+  overflow-y: auto;
+}
+
+.excalidraw-latex-extensions-grid .excalidraw-latex-checkbox {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.excalidraw-latex-preview {
+  min-height: 4rem;
+  border-radius: var(--border-radius-md);
+  border: 1px solid var(--default-border-color);
+  /* MathJax draws glyphs with fill/stroke: currentColor, so matching the
+     modal's own theme colors here previews the formula the same way it'll
+     look once inserted (Excalidraw auto-inverts image colors in dark mode,
+     which also nets out to light-on-dark). */
+  background-color: var(--island-bg-color);
+  color: var(--text-primary-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem;
+  overflow: auto;
+}
+
+.excalidraw-latex-error {
+  color: var(--color-danger-text);
+  font-size: 0.85rem;
+}
+
+.excalidraw-latex-placeholder {
+  color: var(--color-muted-background-darker);
+  font-size: 0.85rem;
+}
+
+.excalidraw-latex-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Excalidraw LaTeX — Demo</title>
+    <style>
+      html,
+      body,
+      #root {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+      }
+    </style>
+    <script>
+      // This standalone page has no VS Code host. vscode.ts calls
+      // acquireVsCodeApi() unconditionally at import time, so it must be
+      // stubbed before any module script runs (classic scripts run before
+      // deferred module scripts regardless of source order). The stub
+      // handles the two message types App.tsx actually sends: opening
+      // clicked links directly (there's no host to route them through) and
+      // logging errors to the console instead of silently dropping them.
+      window.acquireVsCodeApi = function () {
+        return {
+          postMessage: function (message) {
+            if (message && message.type === "link-open" && message.url) {
+              window.open(message.url, "_blank", "noopener,noreferrer");
+            } else if (message && message.type === "error") {
+              console.error("[excalidraw]", message.content);
+            }
+          },
+          getState: function () {
+            return undefined;
+          },
+          setState: function () {},
+        };
+      };
+      window.EXCALIDRAW_EXPORT_SOURCE =
+        "https://github.com/xiupos/excalidraw-vscode-latex";
+    </script>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+    <script type="module" src="./src/demo/main.tsx"></script>
+  </body>
+</html>

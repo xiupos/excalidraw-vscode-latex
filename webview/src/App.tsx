@@ -17,6 +17,7 @@ import {
   LibraryItems,
 } from "@excalidraw/excalidraw/types";
 import { vscode } from "./vscode.ts";
+import { LatexFeature } from "./latex/LatexFeature.tsx";
 
 function detectTheme() {
   switch (document.body.className) {
@@ -171,7 +172,7 @@ export default function App(props: {
           libraryItems: props.libraryItems,
           scrollToContent: true,
         }}
-        libraryReturnUrl={"vscode://pomdtr.excalidraw-editor/importLib"}
+        libraryReturnUrl={"vscode://xiupos.excalidraw-vscode-latex/importLib"}
         onChange={(elements, appState, files) =>
           props.onChange(
             elements,
@@ -199,7 +200,13 @@ export default function App(props: {
             library: serializeLibraryAsJSON(libraryItems),
           });
         }}
-      />
+      >
+        {/* Rendered as a child (not a sibling) of Excalidraw so it stays
+            inside the ".excalidraw" DOM subtree and inherits its themed
+            CSS custom properties (--island-bg-color, --overlay-bg-color,
+            etc.) instead of falling back to transparent/unstyled. */}
+        <LatexFeature excalidrawAPI={excalidrawAPI} />
+      </Excalidraw>
     </div>
   );
 }

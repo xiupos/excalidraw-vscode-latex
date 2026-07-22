@@ -3,6 +3,8 @@
 !dist/**
 !assets/**
 !README.md
+!README_LATEX.md
 !CHANGELOG.md
+!CHANGELOG_LATEX.md
 !package.json
 !LICENSE
