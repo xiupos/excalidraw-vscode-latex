@@ -76,6 +76,7 @@ ReactDOM.render(
       langCode="en"
       viewModeEnabled={false}
       dirty={false}
+      enableLocalFileActions
       initialData={buildSampleScene()}
       imageParams={{
         exportBackground: true,

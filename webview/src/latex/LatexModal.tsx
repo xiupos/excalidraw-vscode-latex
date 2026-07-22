@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { debounce } from "lodash-es";
-import { Button } from "@excalidraw/excalidraw";
+import { Button, useDevice } from "@excalidraw/excalidraw";
 import { renderLatexToSvg, LatexRenderError } from "./renderer";
 import { EXTENSION_OPTIONS, DEFAULT_EXTENSIONS } from "./extensions";
 
@@ -72,6 +72,9 @@ export function LatexModal(props: {
   const [preview, setPreview] = useState<PreviewState>(() =>
     renderPreview(source, displayMode, Array.from(extensions))
   );
+  // Matches the same check Excalidraw's own Dialog component uses to decide
+  // whether Open/Save/Help/etc. go fullscreen, so this dialog does too.
+  const isFullscreen = useDevice().viewport.isMobile;
 
   const toggleExtension = (id: string, enabled: boolean) => {
     setExtensions((prev) => {
@@ -148,88 +151,124 @@ export function LatexModal(props: {
   }, []);
 
   return (
+    // Reuses Excalidraw's own .Modal/.Dialog/.Island classes (backdrop,
+    // fullscreen-on-mobile switch, card chrome, title, close button) instead
+    // of reimplementing them, so this dialog matches Excalidraw's own
+    // dialogs (Open/Save/Help/etc.) instead of just resembling them. These
+    // are internal, unexported classes (owned by Excalidraw's private Modal/
+    // Dialog components, not its public API) as of @excalidraw/excalidraw@
+    // 0.18.1, with no stability guarantee across version bumps -- a rename
+    // would only risk a visual/behavioral mismatch here, not this dialog
+    // failing to render at all, since none of it gates on a selector match
+    // the way ToolbarButton.tsx's placement does.
     <div
-      className="excalidraw-latex-overlay"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) {
-          props.onCancel();
-        }
-      }}
+      className={`Modal Dialog excalidraw-latex-dialog${isFullscreen ? " Dialog--fullscreen" : ""}`}
+      role="dialog"
+      aria-modal="true"
     >
-      <div className="excalidraw-latex-modal">
-        <h2>LaTeX Formula</h2>
-        <textarea
-          autoFocus
-          value={source}
-          placeholder="e.g. e^{i\pi} + 1 = 0"
-          onChange={(e) => setSource(e.target.value)}
-          rows={4}
-        />
-        <label className="excalidraw-latex-checkbox">
-          <input
-            type="checkbox"
-            checked={displayMode}
-            onChange={(e) => setDisplayMode(e.target.checked)}
-          />
-          Display mode
-        </label>
-        <details className="excalidraw-latex-extensions">
-          <summary>MathJax extensions ({extensions.size} enabled)</summary>
-          <div className="excalidraw-latex-extensions-controls">
-            <button type="button" onClick={selectAllExtensions}>
-              Select all
-            </button>
-            <button type="button" onClick={selectNoExtensions}>
-              Select none
-            </button>
-          </div>
-          <div className="excalidraw-latex-extensions-grid">
-            {EXTENSION_OPTIONS.map((option) => (
-              <label
-                key={option.id}
-                className="excalidraw-latex-checkbox"
-                title={option.label}
+      <div className="Modal__background" onClick={props.onCancel} />
+      <div
+        className="Modal__content"
+        style={{ "--max-width": "480px" } as React.CSSProperties}
+      >
+        <div className="Island">
+          <h2 className="Dialog__title">
+            <span className="Dialog__titleContent">LaTeX Formula</span>
+          </h2>
+          {isFullscreen && (
+            <button
+              className="Dialog__close"
+              onClick={props.onCancel}
+              title="Close"
+              aria-label="Close"
+              type="button"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
               >
-                <input
-                  type="checkbox"
-                  checked={extensions.has(option.id)}
-                  onChange={(e) =>
-                    toggleExtension(option.id, e.target.checked)
-                  }
-                />
-                {option.label}
-              </label>
-            ))}
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+          <div className="Dialog__content excalidraw-latex-content">
+            <textarea
+              autoFocus
+              value={source}
+              placeholder="e.g. e^{i\pi} + 1 = 0"
+              onChange={(e) => setSource(e.target.value)}
+              rows={4}
+            />
+            <label className="excalidraw-latex-checkbox">
+              <input
+                type="checkbox"
+                checked={displayMode}
+                onChange={(e) => setDisplayMode(e.target.checked)}
+              />
+              Display mode
+            </label>
+            <details className="excalidraw-latex-extensions">
+              <summary>MathJax extensions ({extensions.size} enabled)</summary>
+              <div className="excalidraw-latex-extensions-controls">
+                <button type="button" onClick={selectAllExtensions}>
+                  Select all
+                </button>
+                <button type="button" onClick={selectNoExtensions}>
+                  Select none
+                </button>
+              </div>
+              <div className="excalidraw-latex-extensions-grid">
+                {EXTENSION_OPTIONS.map((option) => (
+                  <label
+                    key={option.id}
+                    className="excalidraw-latex-checkbox"
+                    title={option.label}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={extensions.has(option.id)}
+                      onChange={(e) =>
+                        toggleExtension(option.id, e.target.checked)
+                      }
+                    />
+                    {option.label}
+                  </label>
+                ))}
+              </div>
+            </details>
+            <div className="excalidraw-latex-preview">
+              {preview.error && (
+                <span className="excalidraw-latex-error">{preview.error}</span>
+              )}
+              {preview.svg && (
+                <div dangerouslySetInnerHTML={{ __html: preview.svg }} />
+              )}
+              {!preview.svg && !preview.error && (
+                <span className="excalidraw-latex-placeholder">
+                  Preview will appear here
+                </span>
+              )}
+            </div>
+            <div className="excalidraw-latex-actions">
+              <Button
+                className="excalidraw-latex-text-button"
+                onSelect={props.onCancel}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="excalidraw-latex-text-button"
+                selected
+                disabled={!canSubmit}
+                onSelect={submit}
+              >
+                {props.initialSource !== undefined ? "Update" : "Insert"}
+              </Button>
+            </div>
           </div>
-        </details>
-        <div className="excalidraw-latex-preview">
-          {preview.error && (
-            <span className="excalidraw-latex-error">{preview.error}</span>
-          )}
-          {preview.svg && (
-            <div dangerouslySetInnerHTML={{ __html: preview.svg }} />
-          )}
-          {!preview.svg && !preview.error && (
-            <span className="excalidraw-latex-placeholder">
-              Preview will appear here
-            </span>
-          )}
-        </div>
-        <div className="excalidraw-latex-actions">
-          <Button
-            className="excalidraw-latex-text-button"
-            onSelect={props.onCancel}
-          >
-            Cancel
-          </Button>
-          <Button
-            className="excalidraw-latex-text-button"
-            selected
-            disabled={!canSubmit}
-            onSelect={submit}
-          >
-            {props.initialSource !== undefined ? "Update" : "Insert"}
-          </Button>
         </div>
       </div>
     </div>

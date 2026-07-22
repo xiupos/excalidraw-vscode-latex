@@ -1,125 +1,90 @@
-import { useEffect, useRef, useState } from "react";
-import { Button } from "@excalidraw/excalidraw";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import { useDevice } from "@excalidraw/excalidraw";
 import "./styles.css";
 
-// Excalidraw's top menu is a 3-column grid (left menu / centered shapes
-// toolbar / right-corner UI via renderTopRightUI), so there's no prop to
-// render content directly beside the centered toolbar island. Instead we
-// measure the toolbar's own position and float a same-styled ".Island" box
-// right next to it, keeping it in sync via ResizeObserver so it still lines
-// up if the toolbar's width changes (e.g. the "more tools" button
-// appearing/disappearing, or the window resizing).
-//
-// Two things can shrink the space actually available for that: narrow
-// viewports (Excalidraw's mobile layout lets the toolbar grow to fill
-// nearly the full width) and the library sidebar opening on the right edge
-// (it overlays independently of the toolbar's own centered position, so at
-// most viewport widths the sidebar's left edge -- not the window's -- is
-// the real boundary; naively using window.innerWidth would render the
-// button underneath the sidebar panel, out of reach). A MutationObserver
-// re-locates the toolbar if the mobile layout swaps in a different element
-// and picks up the sidebar opening/closing, and the final position is
-// clamped against whichever boundary is closer (overlapping the toolbar's
-// own edge in the worst case, rather than disappearing).
-export function LatexToolbarButton(props: { onClick: () => void }) {
-  const anchorRef = useRef<HTMLDivElement>(null);
-  const [style, setStyle] = useState<React.CSSProperties>({ opacity: 0 });
+// This file targets internal, unexported Excalidraw DOM (class names owned
+// by its private ToolButton/MobileMenu components, not its public API), as
+// of @excalidraw/excalidraw@0.18.1. There's no stability guarantee across
+// version bumps: DESKTOP_TOOLBAR_ROW_SELECTOR/MOBILE_TOOLS_ROW_SELECTOR
+// silently not matching means the button just doesn't appear (see the
+// `!container` check below), while the ToolIcon_type_button/ToolIcon__icon/
+// App-toolbar__divider class names below only risk a visual mismatch if
+// renamed. If the button vanishes or looks off after bumping that
+// dependency, start here.
+const DESKTOP_TOOLBAR_ROW_SELECTOR = ".Island.App-toolbar .Stack.Stack_horizontal";
+const MOBILE_TOOLS_ROW_SELECTOR = ".mobile-misc-tools-container";
+
+// Portals into a DOM node inside Excalidraw's own UI so the button flows
+// inline with Excalidraw's own layout (sizing, position, wrapping) instead
+// of needing its own tracking logic. Excalidraw can unmount or swap the
+// target across renders (view mode toggling, the mobile/desktop breakpoint,
+// sidebar changes), hence re-locating it via MutationObserver rather than a
+// one-shot query.
+function usePortalContainer(selector: string): Element | null {
+  const [container, setContainer] = useState<Element | null>(null);
 
   useEffect(() => {
-    const excalidrawRoot = anchorRef.current?.closest(".excalidraw");
+    const excalidrawRoot = document.querySelector(".excalidraw");
     if (!excalidrawRoot) {
       return;
     }
 
-    let toolbar: Element | null = null;
-    let sidebar: Element | null = null;
-    const toolbarObserver = new ResizeObserver(reposition);
-    const sidebarObserver = new ResizeObserver(reposition);
-
-    function reposition() {
-      const rect = toolbar?.getBoundingClientRect();
-      // Zen mode (and anything else that hides the toolbar without removing
-      // it, e.g. via width/height: 0 + visibility: hidden rather than
-      // display: none) collapses it to an empty rect instead of making
-      // `toolbar` null; treat that the same as "no toolbar" so the button
-      // doesn't end up floating at a stale/degenerate position.
-      if (!toolbar || !rect || (rect.width === 0 && rect.height === 0)) {
-        setStyle({ opacity: 0, pointerEvents: "none" });
-        return;
-      }
-      // The button is square (see .excalidraw-latex-island-button), so its
-      // own width tracks the toolbar's height; use that instead of
-      // measuring the button itself, which may still be at its old
-      // position/size when this runs.
-      const size = rect.height + 6;
-      const rightBound = sidebar
-        ? Math.min(window.innerWidth, sidebar.getBoundingClientRect().left)
-        : window.innerWidth;
-      const maxLeft = rightBound - size - 8;
-      const left = Math.max(8, Math.min(rect.right + 8, maxLeft));
-      setStyle({
-        position: "fixed",
-        top: rect.top,
-        left,
-        height: rect.height,
-        opacity: 1,
-        pointerEvents: "auto",
-      });
-    }
-
-    // Re-finds the toolbar/sidebar elements (Excalidraw can swap either for
-    // a different node, e.g. across the mobile/desktop breakpoint, or when
-    // the sidebar opens/closes/switches tabs) and keeps the ResizeObservers
-    // pointed at whatever's currently there.
-    const sync = () => {
-      const foundToolbar = excalidrawRoot.querySelector(".Island.App-toolbar");
-      if (foundToolbar !== toolbar) {
-        if (toolbar) {
-          toolbarObserver.unobserve(toolbar);
-        }
-        toolbar = foundToolbar;
-        if (toolbar) {
-          toolbarObserver.observe(toolbar);
-        }
-      }
-
-      const foundSidebar = excalidrawRoot.querySelector(".Island.sidebar");
-      if (foundSidebar !== sidebar) {
-        if (sidebar) {
-          sidebarObserver.unobserve(sidebar);
-        }
-        sidebar = foundSidebar;
-        if (sidebar) {
-          sidebarObserver.observe(sidebar);
-        }
-      }
-
-      reposition();
-    };
-
+    const sync = () => setContainer(excalidrawRoot.querySelector(selector));
     sync();
 
-    const mutationObserver = new MutationObserver(sync);
-    mutationObserver.observe(excalidrawRoot, { childList: true, subtree: true });
+    const observer = new MutationObserver(sync);
+    observer.observe(excalidrawRoot, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [selector]);
 
-    window.addEventListener("resize", reposition);
-    return () => {
-      toolbarObserver.disconnect();
-      sidebarObserver.disconnect();
-      mutationObserver.disconnect();
-      window.removeEventListener("resize", reposition);
-    };
-  }, []);
+  return container;
+}
 
-  return (
-    <div ref={anchorRef} className="Island excalidraw-latex-island" style={style}>
-      <Button
-        className="excalidraw-latex-island-button"
+// Below Excalidraw's own mobile breakpoint it swaps in a MobileMenu whose
+// toolbar island grows to fill nearly the full width, leaving no room to
+// place a button beside it the way the desktop toolbar allows; mobile has
+// its own dedicated row for extra tool buttons (lock/hand/pen mode/sidebar
+// trigger) instead. Either way the button becomes a real, portaled child of
+// Excalidraw's own row rather than a separately positioned element, so it
+// gets Excalidraw's own sizing/wrapping/overflow behavior for free.
+export function LatexToolbarButton(props: { onClick: () => void }) {
+  const device = useDevice();
+  const container = usePortalContainer(
+    device.editor.isMobile ? MOBILE_TOOLS_ROW_SELECTOR : DESKTOP_TOOLBAR_ROW_SELECTOR
+  );
+
+  if (!container) {
+    return null;
+  }
+
+  // Replicates the markup Excalidraw's own internal ToolButton renders for
+  // its "button"-type tool icons (e.g. the "more tools" trigger) -- a plain,
+  // unbordered button wrapping a .ToolIcon__icon -- rather than using the
+  // exported <Button>, whose border/background is meant for standalone
+  // buttons like this dialog's own Cancel/Insert, not toolbar icons.
+  // ToolButton itself isn't exported, so this is hand-rolled from its
+  // output classes instead.
+  return createPortal(
+    <>
+      {/* Sets this button visually apart from the shape tools it's appended
+          after, matching the same divider Excalidraw's own toolbar uses
+          elsewhere in this row (e.g. before "more tools"). Mobile's row is
+          a short, purpose-built list (lock/hand/pen mode/sidebar trigger)
+          without any dividers of its own, so this doesn't belong there. */}
+      {!device.editor.isMobile && <div className="App-toolbar__divider" />}
+      <button
+        type="button"
+        className="ToolIcon_type_button ToolIcon"
         title="Insert LaTeX Formula"
-        onSelect={props.onClick}
+        aria-label="Insert LaTeX Formula"
+        onClick={props.onClick}
       >
-        Σ
-      </Button>
-    </div>
+        <div className="ToolIcon__icon" aria-hidden="true">
+          Σ
+        </div>
+      </button>
+    </>,
+    container
   );
 }

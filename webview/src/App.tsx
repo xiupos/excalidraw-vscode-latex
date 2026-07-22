@@ -84,6 +84,8 @@ export default function App(props: {
     appState: Partial<AppState>,
     files?: BinaryFiles
   ) => void;
+  // Local open/save only makes sense outside the VS Code host.
+  enableLocalFileActions?: boolean;
 }) {
   const [excalidrawAPI, setExcalidrawAPI] = useState<ExcalidrawImperativeAPI>();
   const libraryItemsRef = useRef(props.libraryItems);
@@ -159,8 +161,8 @@ export default function App(props: {
         excalidrawAPI={(api) => setExcalidrawAPI(api)}
         UIOptions={{
           canvasActions: {
-            loadScene: false,
-            saveToActiveFile: false,
+            loadScene: props.enableLocalFileActions ?? false,
+            saveToActiveFile: props.enableLocalFileActions ?? false,
           },
         }}
         langCode={langCode}

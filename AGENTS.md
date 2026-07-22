@@ -55,12 +55,14 @@ npm run lint             # eslint
 
 It's PWA-enabled via `vite-plugin-pwa`, configured only in `vite.demo.config.ts`. Its icons live in `webview/demo-public/`, a directory dedicated to the demo build's `publicDir` — deliberately not the conventional `webview/public/`, because Vite's default `publicDir` is shared by every config with the same project root, and a plain `public/` would get copied into the real extension's `webview/dist` output too. Keep it that way if you add more demo-only static assets.
 
+`npm run build:demo`'s Rollup input is `demo.html`, so `webview/dist-demo/` has no `index.html` — only `demo.html`. [.github/workflows/deploy-demo.yml](./.github/workflows/deploy-demo.yml) renames it for the real deploy (`mv dist-demo/demo.html dist-demo/index.html`), but for local checks with `npm run preview:demo` there's no such rename step: `http://localhost:4173/<base>/` 404s. Navigate to `http://localhost:4173/<base>/demo.html` directly instead (no need to copy/rename anything locally).
+
 ## Testing changes
 
 There is no automated test suite for the webview UI. Before calling a UI change done:
 
 1. `webview/`: `npm run lint` and `npx tsc -b` (or `--force` if you want a full rebuild rather than incremental) should both be clean.
-2. Exercise the change in a browser. `npm run dev` inside `webview/` starts a Vite dev server for `webview/index.html`, but that entry point calls `acquireVsCodeApi()` unconditionally at import time and will throw outside a real VS Code webview host — stub it the same way `demo.html` does (see the inline `<script>` at the top of [webview/demo.html](./webview/demo.html)) if you need a throwaway harness page for interactive debugging. Don't commit throwaway harness files; they're scratch, not fixtures.
+2. Exercise the change in a browser. `npm run dev` inside `webview/` starts a Vite dev server for `webview/index.html`, but that entry point calls `acquireVsCodeApi()` unconditionally at import time and will throw outside a real VS Code webview host — stub it the same way `demo.html` does (see the inline `<script>` at the top of [webview/demo.html](./webview/demo.html)) if you need a throwaway harness page for interactive debugging. Don't commit throwaway harness files; they're scratch, not fixtures. To check the actual demo build instead, see the `preview:demo` gotcha under "The demo site" above — go to `/demo.html`, not `/`.
 3. `npm run package` at the repo root (or `npm run build` for a faster dev build) followed by `npx @vscode/vsce package` produces a real `.vsix` — installing that in an actual VS Code instance is the only way to verify extension-host-specific behavior (file associations, `customData` round-tripping through real file saves, etc.).
 
 ## Code style
